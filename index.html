@@ -379,7 +379,8 @@ function renderHome() {
       <button class="act" id="failBtn" ${sm.failed ? '' : 'disabled'}><b>Repasar falladas</b><span>${sm.failed} pendientes</span></button>
       <button class="act" id="newBtn" ${sm.seen < sm.total ? '' : 'disabled'}><b>Solo nuevas</b><span>${sm.total - sm.seen} sin ver</span></button>
       <button class="act" id="allBtn"><b>Todo en orden</b><span>Del 1 al ${D.q.length}</span></button>
-      ${region === 'M' ? `<button class="act" id="photoBtn" style="grid-column:1/-1"><b>Identificar especies</b><span>Preguntas con foto del anejo fotográfico (${SPECIES.length} especies)</span></button>` : ''}
+      ${region === 'M' ? `<button class="act" id="photoBtn"><b>Identificar especies</b><span>Preguntas con foto de ${SPECIES.length} especies</span></button>
+      <button class="act" id="photoLearnBtn"><b>Fotos con la respuesta</b><span>Las mismas fotos con la especie y su explicación a la vista</span></button>` : ''}
     </div>
     <section style="display:grid;gap:10px">
       <h2>Estudiar por temas</h2>
@@ -401,6 +402,7 @@ function renderHome() {
   $('#failBtn').onclick = () => startStudy('Repasar falladas', shuffle(D.q.filter(q => { const s = stats[qid(region, q)]; return s && !s[2]; })));
   $('#newBtn').onclick = () => startStudy('Solo nuevas', shuffle(D.q.filter(q => !stats[qid(region, q)])));
   if ($('#photoBtn')) $('#photoBtn').onclick = () => startStudy('Identificar especies', shuffle(photoQuestions()));
+  if ($('#photoLearnBtn')) $('#photoLearnBtn').onclick = () => { startStudy('Fotos con la respuesta', photoQuestions()); session.reveal = true; session.photos = true; renderStudy(); };
   $('#allBtn').onclick = () => startStudy('Todo en orden', D.q.slice(), store.get('pos:' + region, 0));
   document.querySelectorAll('.tema').forEach(b => b.onclick = () => { const t = +b.dataset.t; startStudy(D.temas[t], D.q.filter(q => q[0] === t)); });
   $('#resetBtn').onclick = () => confirmSheet('Borrar progreso', `Se borrarán tus respuestas y simulacros de ${D.name}.`, 'Borrar', () => {
@@ -475,7 +477,7 @@ function renderStudy() {
   const s = session, q = s.qs[s.i], D = DATA[region], a = s.reveal ? q[4] : s.answers[s.i];
   const answered = a !== undefined;
   if (s.ordered) store.set('pos:' + region, s.i);
-  if (s.reveal) store.set('learn:' + region, s.i);
+  if (s.reveal && !s.photos) store.set('learn:' + region, s.i);
   $('#view').innerHTML = `
     <div class="qhead"><span class="eyebrow">${esc(s.title)}</span><span class="eyebrow" style="font-variant-numeric:tabular-nums">${s.i + 1} / ${s.qs.length}</span></div>
     <div class="progress"><i style="width:${(s.i + (answered ? 1 : 0)) / s.qs.length * 100}%"></i></div>
@@ -501,7 +503,7 @@ function renderStudy() {
     <button class="btn ${answered ? '' : 'alt'}" id="nextBtn" style="flex:1">${last ? 'Terminar' : answered ? 'Siguiente' : 'Saltar'}</button>`);
   $('#prevBtn').onclick = () => { s.i--; renderStudy(); window.scrollTo(0, 0); };
   $('#nextBtn').onclick = () => { if (last) return finishStudy(); s.i++; renderStudy(); window.scrollTo(0, 0); };
-  if (s.reveal && last) $('#nextBtn').onclick = () => { store.set('learn:' + region, 0); renderHome(); };
+  if (s.reveal && last) $('#nextBtn').onclick = () => { if (!s.photos) store.set('learn:' + region, 0); renderHome(); };
 }
 
 function finishStudy() {
