@@ -372,6 +372,7 @@ function renderHome() {
       <div class="stat"><div class="v" style="color:${sm.failed ? 'var(--bad)' : 'inherit'}">${sm.failed}</div><div class="l">Por repasar</div></div>
     </div>
     <button class="act" id="bookBtn" style="border-color:var(--forest)"><b>Temario con respuestas</b><span>Las ${D.q.length} preguntas de ${esc(D.short)} con la respuesta correcta marcada, por temas${region === 'M' ? ', y las fotos de especies' : ''}. Para estudiar.</span></button>
+    <button class="act" id="learnBtn" style="border-color:var(--forest)"><b>Aprender con la respuesta a la vista</b><span>Pregunta a pregunta, con la correcta ya marcada${region === 'M' ? ' (incluye las de foto)' : ''}. No cuenta en tus estadísticas.</span></button>
     <button class="hero-btn" id="examBtn"><div><b>Simulacro de examen</b><span>${EXAM_N} preguntas al azar · ${esc(RULES[region].label)}</span></div><div class="arrow" aria-hidden="true">›</div></button>
     <div class="actions">
       <button class="act" id="rndBtn"><b>Práctica rápida</b><span>20 al azar con corrección</span></button>
@@ -395,6 +396,7 @@ function renderHome() {
   document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { region = b.dataset.r; store.set('region', region); renderHome(); });
   $('#examBtn').onclick = startExam;
   $('#bookBtn').onclick = () => renderBook();
+  $('#learnBtn').onclick = () => { const all = D.q.concat(region === 'M' ? photoQuestions() : []); startStudy('Aprender con respuesta', all, store.get('learn:' + region, 0)); session.reveal = true; renderStudy(); };
   $('#rndBtn').onclick = () => startStudy('Práctica rápida', shuffle(D.q).slice(0, 20));
   $('#failBtn').onclick = () => startStudy('Repasar falladas', shuffle(D.q.filter(q => { const s = stats[qid(region, q)]; return s && !s[2]; })));
   $('#newBtn').onclick = () => startStudy('Solo nuevas', shuffle(D.q.filter(q => !stats[qid(region, q)])));
@@ -470,9 +472,10 @@ function optHtml(q, i, cls, disabled) {
 }
 
 function renderStudy() {
-  const s = session, q = s.qs[s.i], D = DATA[region], a = s.answers[s.i];
+  const s = session, q = s.qs[s.i], D = DATA[region], a = s.reveal ? q[4] : s.answers[s.i];
   const answered = a !== undefined;
   if (s.ordered) store.set('pos:' + region, s.i);
+  if (s.reveal) store.set('learn:' + region, s.i);
   $('#view').innerHTML = `
     <div class="qhead"><span class="eyebrow">${esc(s.title)}</span><span class="eyebrow" style="font-variant-numeric:tabular-nums">${s.i + 1} / ${s.qs.length}</span></div>
     <div class="progress"><i style="width:${(s.i + (answered ? 1 : 0)) / s.qs.length * 100}%"></i></div>
@@ -481,9 +484,10 @@ function renderStudy() {
       ${qimg(q, answered)}
       <p class="qtext">${esc(q[2])}</p>
       <div class="opts">${q[3].map((_, i) => optHtml(q, i, answered ? (i === q[4] ? 'right' : i === a ? 'wrong' : '') : '', answered)).join('')}</div>
-      ${answered ? `<div class="feedback ${a === q[4] ? 'ok' : 'bad'}">${a === q[4] ? '✓ Correcta' : '✗ Incorrecta · la buena es la ' + letters[q[4]].toUpperCase()}</div>` : ''}
+      ${answered && !s.reveal ? `<div class="feedback ${a === q[4] ? 'ok' : 'bad'}">${a === q[4] ? '✓ Correcta' : '✗ Incorrecta · la buena es la ' + letters[q[4]].toUpperCase()}</div>` : ''}
     </article>
-    <p class="note" style="text-align:center;font-variant-numeric:tabular-nums">Esta sesión: <b style="color:var(--ok)">${s.ok} bien</b> · <b style="color:var(--bad)">${s.bad} mal</b></p>
+    ${s.reveal ? `<input class="search" id="jump" type="number" min="1" max="${s.qs.length}" placeholder="Ir a la pregunta nº (1-${s.qs.length})">` : ''}
+    <p class="note" style="text-align:center;font-variant-numeric:tabular-nums" ${s.reveal ? 'hidden' : ''}>Esta sesión: <b style="color:var(--ok)">${s.ok} bien</b> · <b style="color:var(--bad)">${s.bad} mal</b></p>
   `;
   document.querySelectorAll('.opt:not(:disabled)').forEach(b => b.onclick = () => {
     const o = +b.dataset.o, correct = o === q[4];
@@ -491,11 +495,13 @@ function renderStudy() {
     record(q, correct);
     renderStudy();
   });
+  if (s.reveal) $('#jump').onchange = e => { const n = Math.min(Math.max(1, +e.target.value || 1), s.qs.length); s.i = n - 1; renderStudy(); window.scrollTo(0, 0); };
   const last = s.i === s.qs.length - 1;
   setDock(`<button class="btn alt" id="prevBtn" ${s.i ? '' : 'disabled'} aria-label="Anterior">‹</button>
     <button class="btn ${answered ? '' : 'alt'}" id="nextBtn" style="flex:1">${last ? 'Terminar' : answered ? 'Siguiente' : 'Saltar'}</button>`);
   $('#prevBtn').onclick = () => { s.i--; renderStudy(); window.scrollTo(0, 0); };
   $('#nextBtn').onclick = () => { if (last) return finishStudy(); s.i++; renderStudy(); window.scrollTo(0, 0); };
+  if (s.reveal && last) $('#nextBtn').onclick = () => { store.set('learn:' + region, 0); renderHome(); };
 }
 
 function finishStudy() {
