@@ -67,6 +67,7 @@ header.top .wrap { display: flex; align-items: center; gap: 12px; padding-block:
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
 .brand svg { flex: none; }
 .brand b { font-family: var(--display); font-size: 1.45rem; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; line-height: 1; }
+.brand .by { font-family: var(--body); font-size: .72rem; font-weight: 600; text-transform: none; letter-spacing: .02em; opacity: .7; vertical-align: middle; }
 .brand small { display: block; font-size: .78rem; opacity: .75; letter-spacing: .04em; }
 .iconbtn { background: transparent; border: 1px solid color-mix(in srgb, var(--forest-ink) 30%, transparent); color: var(--forest-ink); border-radius: 10px; padding: 6px 12px; font-weight: 600; font-size: .9rem; }
 
@@ -215,7 +216,7 @@ figcaption.spinfo b, .zoom p b { color: var(--ink); }
         <circle cx="17" cy="17" r="2.5" fill="#e8590c"/>
         <path d="M17 0v6M17 28v6M0 17h6M28 17h6" stroke="currentColor" stroke-width="2"/>
       </svg>
-      <div><b>Licencia de caza</b><small id="hdrSub">Preguntas de examen</small></div>
+      <div><b>Licencia de caza <span class="by">by FJL</span></b><small id="hdrSub">Preguntas de examen</small></div>
     </div>
     <button class="iconbtn" id="homeBtn" hidden>Inicio</button>
   </div>
