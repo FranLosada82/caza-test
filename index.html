@@ -51,7 +51,7 @@
   --ok: #6cc47f; --ok-soft: #1c3321; --bad: #ff8a80; --bad-soft: #3d1f1c; color-scheme: dark;
 }
 * { box-sizing: border-box; }
-html, body { min-height: 100%; }
+html, body { min-height: 100%; overflow-x: clip; }
 body {
   background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.45;
   -webkit-tap-highlight-color: transparent;
@@ -77,7 +77,7 @@ header.top .wrap { display: flex; align-items: center; gap: 12px; padding-block:
 :root[data-theme="dark"] .seg button[aria-pressed="true"] { background: var(--blaze); color: #1a0d05; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .seg button[aria-pressed="true"] { background: var(--blaze); color: #1a0d05; } }
 
-main { padding-block: 18px 120px; display: grid; gap: 18px; }
+main { touch-action: pan-y; padding-block: 18px 120px; display: grid; gap: 18px; }
 h2 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; }
 .eyebrow { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 
@@ -425,18 +425,45 @@ function renderHome() {
 }
 
 /* ---------- Deslizar para cambiar de pregunta ---------- */
-// Deslizar a la izquierda = siguiente; a la derecha = anterior. Solo en estudio y simulacro, y nunca para terminar.
-let touch0 = null;
-document.addEventListener('touchstart', e => { touch0 = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
-document.addEventListener('touchend', e => {
-  if (!touch0 || !session || !['study', 'exam'].includes(session.mode) || $('#sheetHost').innerHTML) return;
-  const t = e.changedTouches[0], dx = t.clientX - touch0.x, dy = t.clientY - touch0.y;
-  touch0 = null;
-  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
-  const goNext = dx < 0, last = session.i === session.qs.length - 1;
-  if (goNext && last) return;
-  const btn = $(goNext ? '#nextBtn' : '#prevBtn');
-  if (btn && !btn.disabled) btn.click();
+// La pregunta sigue al dedo; solo cambia si se arrastra más de un tercio de pantalla, y sale por un lado mientras la nueva entra por el otro.
+// Izquierda = siguiente, derecha = anterior. Solo en estudio y simulacro, y nunca para terminar.
+let drag = null;
+const swipeTarget = dir => {
+  if (!session || !['study', 'exam'].includes(session.mode) || $('#sheetHost').innerHTML) return null;
+  if (dir < 0 && session.i === session.qs.length - 1) return null;
+  const b = $(dir < 0 ? '#nextBtn' : '#prevBtn');
+  return b && !b.disabled ? b : null;
+};
+document.addEventListener('touchstart', e => {
+  drag = null;
+  if (e.touches.length !== 1 || !session || !['study', 'exam'].includes(session.mode)) return;
+  drag = { x: e.touches[0].clientX, y: e.touches[0].clientY, dx: 0, lock: null };
+}, { passive: true });
+document.addEventListener('touchmove', e => {
+  if (!drag) return;
+  const t = e.touches[0], dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+  if (!drag.lock && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) drag.lock = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+  if (drag.lock !== 'x') return;
+  const v = $('#view'), w = v.offsetWidth || window.innerWidth;
+  drag.dx = swipeTarget(dx < 0 ? -1 : 1) ? dx : dx * 0.25;   // sin pregunta a la que ir, apenas se mueve
+  v.style.transition = 'none';
+  v.style.transform = `translateX(${drag.dx}px)`;
+  v.style.opacity = 1 - Math.min(Math.abs(drag.dx) / w, 1) * 0.6;
+}, { passive: true });
+document.addEventListener('touchend', () => {
+  if (!drag || drag.lock !== 'x') { drag = null; return; }
+  const v = $('#view'), w = v.offsetWidth || window.innerWidth, dx = drag.dx, btn = swipeTarget(dx < 0 ? -1 : 1);
+  drag = null;
+  const ease = 'transform .18s ease-out, opacity .18s ease-out';
+  if (!btn || Math.abs(dx) < w / 3) { v.style.transition = ease; v.style.transform = ''; v.style.opacity = ''; return; }
+  const dir = dx < 0 ? -1 : 1;
+  v.style.transition = ease; v.style.transform = `translateX(${dir * w}px)`; v.style.opacity = '0';
+  setTimeout(() => {
+    btn.click();
+    v.style.transition = 'none'; v.style.transform = `translateX(${-dir * w * 0.6}px)`; v.style.opacity = '0';
+    void v.offsetWidth;
+    v.style.transition = ease; v.style.transform = ''; v.style.opacity = '';
+  }, 180);
 }, { passive: true });
 
 /* ---------- Foto ampliada ---------- */
