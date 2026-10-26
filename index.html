@@ -424,6 +424,21 @@ function renderHome() {
   window.scrollTo(0, 0);
 }
 
+/* ---------- Deslizar para cambiar de pregunta ---------- */
+// Deslizar a la izquierda = siguiente; a la derecha = anterior. Solo en estudio y simulacro, y nunca para terminar.
+let touch0 = null;
+document.addEventListener('touchstart', e => { touch0 = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+document.addEventListener('touchend', e => {
+  if (!touch0 || !session || !['study', 'exam'].includes(session.mode) || $('#sheetHost').innerHTML) return;
+  const t = e.changedTouches[0], dx = t.clientX - touch0.x, dy = t.clientY - touch0.y;
+  touch0 = null;
+  if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+  const goNext = dx < 0, last = session.i === session.qs.length - 1;
+  if (goNext && last) return;
+  const btn = $(goNext ? '#nextBtn' : '#prevBtn');
+  if (btn && !btn.disabled) btn.click();
+}, { passive: true });
+
 /* ---------- Foto ampliada ---------- */
 document.addEventListener('click', e => {
   const img = e.target.closest('.qimg img');
