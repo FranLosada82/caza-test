@@ -1,5 +1,5 @@
 // Caché sin conexión: la app se guarda al instalarla y las fuentes se guardan al primer uso.
-const CACHE = 'caza-test-v1';
+const CACHE = 'caza-test-v2';
 const APP = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -136,6 +136,8 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; text-tra
 .opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
 .opt.wrong .k { background: var(--bad); color: var(--surface); border-color: var(--bad); }
 .opt:disabled { cursor: default; color: var(--ink); }
+.qimg { margin: 0; border-radius: 12px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); }
+.qimg img { display: block; width: 100%; max-height: 52vh; object-fit: contain; }
 .feedback { font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .feedback.ok { color: var(--ok); }
 .feedback.bad { color: var(--bad); }
@@ -213,6 +215,34 @@ const RULES = {
   E: { label: 'Cada fallo resta 0,5. Aprobado con 15 puntos netos (orientativo)', pass: r => r.ok - r.bad * 0.5 >= 15, score: r => r.ok - r.bad * 0.5, max: EXAM_N, fmt: r => (r.ok - r.bad * 0.5).toLocaleString('es-ES') + ' pts' }
 };
 
+// Identificación de especies con las fotos del anejo fotográfico del manual FMC 2018 (págs. 123-154).
+// c: 1 cinegética, 2 solo captura en vivo (silvestrismo), 0 no se puede cazar. g: grupo de especies parecidas para los distractores.
+const SPECIES = [
+  ['Becada', 'becada,becada-2', 1, 'lim'], ['Becacina o agachadiza', 'becacina', 0, 'lim'], ['Codorniz', 'codorniz', 1, 'lim'], ['Guion de codornices', 'guion-codornices', 0, 'lim'],
+  ['Perdiz roja', 'perdiz-roja', 1, 'lim'], ['Faisán', 'faisan,faisan-2,faisan-hembra', 1, 'lim'],
+  ['Conejo', 'conejo,conejo-2', 1, 'mam'], ['Liebre', 'liebre,liebre-2', 1, 'mam'], ['Zorro', 'zorro,zorro-2', 1, 'mam'], ['Lobo', 'lobo', 0, 'mam'],
+  ['Corneja', 'corneja,corneja-2', 1, 'cor'], ['Grajilla', 'grajilla,grajilla-2', 1, 'cor'], ['Urraca', 'urraca,urraca-2', 1, 'cor'], ['Cuervo', 'cuervo', 0, 'cor'], ['Graja', 'graja', 0, 'cor'], ['Rabilargo', 'rabilargo', 0, 'cor'],
+  ['Paloma bravía', 'paloma-bravia', 1, 'pal'], ['Paloma torcaz', 'paloma-torcaz', 1, 'pal'], ['Paloma zurita', 'paloma-zurita', 1, 'pal'], ['Tórtola común', 'tortola-comun,tortola-comun-2', 1, 'pal'], ['Tórtola turca', 'tortola-turca', 0, 'pal'],
+  ['Zorzal común', 'zorzal-comun,zorzal-comun-2', 1, 'zor'], ['Zorzal alirrojo', 'zorzal-alirrojo', 1, 'zor'], ['Zorzal charlo', 'zorzal-charlo', 1, 'zor'], ['Zorzal real', 'zorzal-real', 1, 'zor'],
+  ['Estornino pinto', 'estornino-pinto', 1, 'zor'], ['Estornino negro', 'estornino-negro', 0, 'zor'], ['Mirlo', 'mirlo', 0, 'zor'],
+  ['Ciervo', 'ciervo,ciervo-2', 1, 'ung'], ['Corzo', 'corzo,corzo-2', 1, 'ung'], ['Gamo', 'gamo,gamo-2,gama', 1, 'ung'], ['Cabra montés', 'cabra-montes,cabra-montes-2', 1, 'ung'], ['Muflón', 'muflon,muflon-2', 1, 'ung'], ['Jabalí', 'jabali', 1, 'ung'],
+  ['Jilguero', 'jilguero', 2, 'fri'], ['Pardillo', 'pardillo', 2, 'fri'], ['Verderón', 'verderon', 2, 'fri'], ['Verdecillo', 'verdecillo', 0, 'fri'], ['Pinzón vulgar', 'pinzon', 0, 'fri'], ['Lúgano', 'lugano', 0, 'fri'],
+];
+const CAZA_OPTS = ['Sí, es especie cinegética.', 'No, no se puede cazar ni capturar.', 'Solo puede capturarse en vivo (silvestrismo) con autorización.'];
+// Pregunta con foto: [tema, id, texto, opciones, correcta, imagen]. Las opciones se barajan cada vez que se construye la sesión.
+function photoQuestions() {
+  const out = [];
+  for (const [name, imgs, c, g] of SPECIES) {
+    const files = imgs.split(','), others = SPECIES.filter(x => x[3] === g && x[0] !== name).map(x => x[0]);
+    files.forEach(f => {
+      const opts = shuffle([name, ...shuffle(others).slice(0, 2)]);
+      out.push([-1, 'F-' + f, '¿Qué especie aparece en la imagen?', opts, opts.indexOf(name), f]);
+    });
+    out.push([-1, 'C-' + files[0], '¿Se puede cazar en la Comunidad de Madrid la especie de la imagen?', CAZA_OPTS, [1, 0, 2][c], files[files.length > 1 ? 1 : 0]]);
+  }
+  return out;
+}
+
 const store = {
   get(k, d) { try { const v = localStorage.getItem('caza:' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem('caza:' + k, JSON.stringify(v)); } catch (e) {} }
@@ -285,6 +315,7 @@ function renderHome() {
       <button class="act" id="failBtn" ${sm.failed ? '' : 'disabled'}><b>Repasar falladas</b><span>${sm.failed} pendientes</span></button>
       <button class="act" id="newBtn" ${sm.seen < sm.total ? '' : 'disabled'}><b>Solo nuevas</b><span>${sm.total - sm.seen} sin ver</span></button>
       <button class="act" id="allBtn"><b>Todo en orden</b><span>Del 1 al ${D.q.length}</span></button>
+      ${region === 'M' ? `<button class="act" id="photoBtn" style="grid-column:1/-1"><b>Identificar especies</b><span>Preguntas con foto del anejo fotográfico (${SPECIES.length} especies)</span></button>` : ''}
     </div>
     <section style="display:grid;gap:10px">
       <h2>Estudiar por temas</h2>
@@ -295,7 +326,7 @@ function renderHome() {
         </button>`; }).join('')}</div>
     </section>
     ${hist.length ? `<section style="display:grid;gap:10px"><h2>Últimos simulacros</h2><div class="hist">${hist.map(h => `<div><span>${new Date(h.d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} · ${Math.floor(h.t / 60)}:${String(h.t % 60).padStart(2, '0')} min</span><span>${RULES[h.r].fmt(h)} <span class="pill ${RULES[h.r].pass(h) ? 'ok' : 'bad'}">${RULES[h.r].pass(h) ? 'Apto' : 'No apto'}</span></span></div>`).join('')}</div></section>` : ''}
-    <p class="note">Preguntas extraídas de ${esc(D.src)}. Tu progreso se guarda en este dispositivo.${region === 'M' ? ' El examen real de Madrid incluye además preguntas de identificación de especies con fotos, que esta app no reproduce.' : ''}</p>
+    <p class="note">Preguntas extraídas de ${esc(D.src)}. Tu progreso se guarda en este dispositivo.${region === 'M' ? ' El examen real de Madrid incluye además preguntas de identificación de especies con fotos: practícalas en «Identificar especies».' : ''}</p>
     <button class="iconbtn" id="resetBtn" style="color:var(--muted);border-color:var(--line);justify-self:start">Borrar progreso de ${D.short}</button>
   `;
   document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { region = b.dataset.r; store.set('region', region); renderHome(); });
@@ -303,6 +334,7 @@ function renderHome() {
   $('#rndBtn').onclick = () => startStudy('Práctica rápida', shuffle(D.q).slice(0, 20));
   $('#failBtn').onclick = () => startStudy('Repasar falladas', shuffle(D.q.filter(q => { const s = stats[qid(region, q)]; return s && !s[2]; })));
   $('#newBtn').onclick = () => startStudy('Solo nuevas', shuffle(D.q.filter(q => !stats[qid(region, q)])));
+  if ($('#photoBtn')) $('#photoBtn').onclick = () => startStudy('Identificar especies', shuffle(photoQuestions()));
   $('#allBtn').onclick = () => startStudy('Todo en orden', D.q.slice(), store.get('pos:' + region, 0));
   document.querySelectorAll('.tema').forEach(b => b.onclick = () => { const t = +b.dataset.t; startStudy(D.temas[t], D.q.filter(q => q[0] === t)); });
   $('#resetBtn').onclick = () => confirmSheet('Borrar progreso', `Se borrarán tus respuestas y simulacros de ${D.name}.`, 'Borrar', () => {
@@ -322,6 +354,9 @@ function startStudy(title, qs, startAt = 0) {
   renderStudy();
 }
 
+const qimg = q => q[5] ? `<figure class="qimg"><img src="img/${q[5]}.jpg" alt="Foto de la especie que hay que identificar" loading="lazy"></figure>` : '';
+const qlabel = (q, D) => q[5] ? 'Identificación por foto' : `Pregunta ${q[1]} · ${esc(D.temas[q[0]])}`;
+
 function optHtml(q, i, cls, disabled) {
   return `<button class="opt ${cls}" data-o="${i}" ${disabled ? 'disabled' : ''}><span class="k">${letters[i]}</span><span class="t">${esc(q[3][i])}</span></button>`;
 }
@@ -334,7 +369,8 @@ function renderStudy() {
     <div class="qhead"><span class="eyebrow">${esc(s.title)}</span><span class="eyebrow" style="font-variant-numeric:tabular-nums">${s.i + 1} / ${s.qs.length}</span></div>
     <div class="progress"><i style="width:${(s.i + (answered ? 1 : 0)) / s.qs.length * 100}%"></i></div>
     <article class="qcard">
-      <div class="eyebrow">Pregunta ${q[1]} · ${esc(D.temas[q[0]])}</div>
+      <div class="eyebrow">${qlabel(q, D)}</div>
+      ${qimg(q)}
       <p class="qtext">${esc(q[2])}</p>
       <div class="opts">${q[3].map((_, i) => optHtml(q, i, answered ? (i === q[4] ? 'right' : i === a ? 'wrong' : '') : '', answered)).join('')}</div>
       ${answered ? `<div class="feedback ${a === q[4] ? 'ok' : 'bad'}">${a === q[4] ? '✓ Correcta' : '✗ Incorrecta · la buena es la ' + letters[q[4]].toUpperCase()}</div>` : ''}
@@ -384,6 +420,7 @@ function renderExam() {
     <div class="grid">${s.qs.map((_, i) => `<button data-i="${i}" class="${s.answers[i] !== undefined ? 'done' : ''} ${i === s.i ? 'cur' : ''}" aria-label="Pregunta ${i + 1}">${i + 1}</button>`).join('')}</div>
     <article class="qcard">
       <div class="eyebrow">Pregunta ${s.i + 1} de ${EXAM_N}</div>
+      ${qimg(q)}
       <p class="qtext">${esc(q[2])}</p>
       <div class="opts">${q[3].map((_, i) => optHtml(q, i, i === a ? 'sel' : '', false)).join('')}</div>
     </article>
