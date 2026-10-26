@@ -137,7 +137,16 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; text-tra
 .opt.wrong .k { background: var(--bad); color: var(--surface); border-color: var(--bad); }
 .opt:disabled { cursor: default; color: var(--ink); }
 .qimg { margin: 0; border-radius: 12px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); }
-.qimg img { display: block; width: 100%; max-height: 52vh; object-fit: contain; }
+.qimg img { display: block; width: 100%; max-height: 52vh; object-fit: contain; cursor: zoom-in; }
+.spinfo { font-size: .88rem; color: var(--muted); line-height: 1.35; }
+figcaption.spinfo { padding: 8px 10px; }
+figcaption.spinfo b, .zoom p b { color: var(--ink); }
+.zoom { position: fixed; inset: 0; z-index: 30; background: rgba(5, 7, 4, .94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 12px calc(12px + env(safe-area-inset-bottom, 0px)); cursor: zoom-out; }
+.zoom img { max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 8px; }
+.zoom p { margin: 0; max-width: 640px; color: #d9dece; font-size: .95rem; line-height: 1.4; }
+.zoom p b { color: #fff; }
+.zoom .btn { flex: none; padding: 10px 22px; }
 .feedback { font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .feedback.ok { color: var(--ok); }
 .feedback.bad { color: var(--bad); }
@@ -178,6 +187,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; text-tra
 .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
 .gallery figcaption { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; align-items: flex-start; }
 .gallery img { max-height: 160px; object-fit: cover; aspect-ratio: 4 / 3; }
+.gallery .spinfo { display: block; }
 
 /* Diálogo de confirmación propio */
 .sheet { position: fixed; inset: 0; z-index: 20; background: rgba(10, 14, 8, .5); display: grid; align-items: end; }
@@ -237,6 +247,49 @@ const SPECIES = [
   ['Ciervo', 'ciervo,ciervo-2', 1, 'ung'], ['Corzo', 'corzo,corzo-2', 1, 'ung'], ['Gamo', 'gamo,gamo-2,gama', 1, 'ung'], ['Cabra montés', 'cabra-montes,cabra-montes-2', 1, 'ung'], ['Muflón', 'muflon,muflon-2', 1, 'ung'], ['Jabalí', 'jabali', 1, 'ung'],
   ['Jilguero', 'jilguero', 2, 'fri'], ['Pardillo', 'pardillo', 2, 'fri'], ['Verderón', 'verderon', 2, 'fri'], ['Verdecillo', 'verdecillo', 0, 'fri'], ['Pinzón vulgar', 'pinzon', 0, 'fri'], ['Lúgano', 'lugano', 0, 'fri'],
 ];
+// Pie de foto: qué es y por qué se caza o no (según el manual FMC 2018).
+const SPECIES_INFO = {
+  "Becada": "Limícola de bosque, rechoncha, de pico muy largo y plumaje pardo rojizo con franjas transversales en la cabeza. Es cinegética, invernante en Madrid, con cupo de 3 por cazador y día y solo al salto o en mano.",
+  "Becacina o agachadiza": "Parecida a la becada pero más pequeña, más clara por debajo y con franjas longitudinales en la cabeza. No se puede cazar en Madrid: hay que distinguirla bien de la becada.",
+  "Codorniz": "La galliforme más pequeña, migratoria estival, de plumaje pardo listado. Es cinegética y se caza sobre todo en la media veda (agosto-septiembre).",
+  "Guion de codornices": "Rálido de aspecto parecido a la codorniz, con alas rojizas. No se puede cazar: es una especie protegida cuyas poblaciones están en situación muy preocupante.",
+  "Perdiz roja": "Galliforme sedentaria con pico y patas rojos, babero blanco ribeteado de negro y flancos barrados. Es cinegética y la pieza reina de la caza menor.",
+  "Faisán": "Galliforme robusta de cola muy larga; el macho es colorido con la cabeza verde y la hembra parda. Es cinegética y se caza sobre todo sobre ejemplares de granja.",
+  "Conejo": "Lepórido pequeño, de color grisáceo y orejas cortas. Es cinegético y especie básica de la caza menor; además sirve de alimento a muchos predadores.",
+  "Liebre": "Lepórido más grande que el conejo, de color rubio, con orejas y patas más largas y punta de las orejas negra. Es cinegética.",
+  "Zorro": "Cánido de pelaje rojizo y cola larga y poblada. Es cinegético: es abundante y su caza ayuda a controlar la predación sobre la caza menor.",
+  "Lobo": "Cánido mayor que el zorro y de pelaje grisáceo. No se puede cazar en Madrid: es escaso en la región y está protegido.",
+  "Corneja": "Córvido completamente negro de pico robusto, más pequeño que el cuervo. Es cinegética: se caza para controlar sus daños sobre nidos y cultivos.",
+  "Grajilla": "El córvido negro más pequeño, con la nuca gris y el ojo claro. Es cinegética, como la corneja y la urraca.",
+  "Urraca": "Córvido blanco y negro con reflejos azulados y cola muy larga. Es cinegética: es muy abundante y depreda nidos de otras aves.",
+  "Cuervo": "El córvido más grande, todo negro, con pico enorme y cola en cuña. No se puede cazar: no confundirlo con la corneja o la grajilla.",
+  "Graja": "Córvido negro con la cara desnuda y blanquecina en la base del pico. No se puede cazar en Madrid.",
+  "Rabilargo": "Córvido de cuerpo gris azulado, capirote negro y alas y cola largas azul celeste. No se puede cazar: es una especie protegida.",
+  "Paloma bravía": "Paloma gris con dos barras negras en el ala y el obispillo blanco; sedentaria. Es cinegética.",
+  "Paloma torcaz": "La paloma más grande, con manchas blancas en el cuello y en las alas. Es cinegética y muy apreciada en puesto fijo.",
+  "Paloma zurita": "Paloma más pequeña que la torcaz, gris y sin manchas blancas, migratoria. Es cinegética.",
+  "Tórtola común": "Columbiforme pequeña y migratoria, de plumaje marrón aleopardado. Figura como cinegética en el manual, pero comprueba la orden de vedas: por su declive, su caza se ha suspendido o limitado en los últimos años.",
+  "Tórtola turca": "Tórtola grisácea con un collar negro en la nuca, exótica, sedentaria y urbana. No se puede cazar: no confundirla con la tórtola común.",
+  "Zorzal común": "El zorzal más claro, con el pecho moteado de pardo. Es cinegético y se caza al paso en invierno.",
+  "Zorzal alirrojo": "Zorzal pequeño con una ceja blanca marcada y los flancos rojizos bajo el ala. Es cinegético, invernante.",
+  "Zorzal charlo": "El zorzal más grande, de dorso grisáceo y pecho muy moteado. Es cinegético.",
+  "Zorzal real": "Zorzal de cabeza y obispillo grises y dorso castaño. Es cinegético, invernante.",
+  "Estornino pinto": "Pájaro negro con reflejos metálicos y moteado de blanco en invierno; vuela en grandes bandos. Es cinegético.",
+  "Estornino negro": "Parecido al pinto pero sin motas blancas, residente todo el año. No se puede cazar en Madrid.",
+  "Mirlo": "El macho es todo negro con el pico y el anillo ocular naranjas. No se puede cazar: no confundirlo con zorzales o estorninos.",
+  "Ciervo": "El cérvido grande: el macho alcanza los 200 kg y tiene una cuerna larga y ramificada que renueva cada año; berrea en celo. Es cinegético de caza mayor.",
+  "Corzo": "Cérvido pequeño, de unos 25 kg, con cuerna corta de pocas puntas; ladra. Es cinegético de caza mayor; no es una cría de ciervo.",
+  "Gamo": "Cérvido mediano con pelaje moteado de blanco, disco anal blanco bordeado de negro y cuerna palmeada en el macho. Es cinegético de caza mayor.",
+  "Cabra montés": "Bóvido de monte; el macho es mayor, con grandes cuernos curvados y pelaje que se oscurece con la edad. Es cinegética y los machos se cazan en rececho.",
+  "Muflón": "Bóvido parecido a una oveja, de color pardo con una mancha clara en el costado; el macho tiene cuernos en espiral. Es cinegético de caza mayor.",
+  "Jabalí": "Suido robusto de pelaje oscuro y hocico alargado; el macho tiene colmillos. Es cinegético de caza mayor y se puede cazar en espera o aguardo.",
+  "Jilguero": "Fringílido de cara roja, capirote negro y franja amarilla en el ala. No se caza, pero se pueden capturar en vivo machos con autorización para silvestrismo.",
+  "Pardillo": "Fringílido pardo; el macho tiene la frente y el pecho rojos en primavera. No se caza, pero se pueden capturar en vivo machos con autorización para silvestrismo.",
+  "Verderón": "Fringílido robusto verde oliva con amarillo en alas y cola. No se caza, pero se pueden capturar en vivo machos con autorización para silvestrismo.",
+  "Verdecillo": "Fringílido muy pequeño, amarillo verdoso y listado, de pico corto. No se puede cazar ni capturar.",
+  "Pinzón vulgar": "Fringílido; el macho tiene pecho rosado, cabeza gris azulada y barras blancas en el ala. No se puede cazar ni capturar.",
+  "Lúgano": "Fringílido pequeño, amarillo verdoso; el macho tiene capirote y babero negros. No se puede cazar ni capturar en Madrid."
+};
 const CAZA_OPTS = ['Sí, es especie cinegética.', 'No, no se puede cazar ni capturar.', 'Solo puede capturarse en vivo (silvestrismo) con autorización.'];
 // Pregunta con foto: [tema, id, texto, opciones, correcta, imagen]. Las opciones se barajan cada vez que se construye la sesión.
 function photoQuestions() {
@@ -245,9 +298,9 @@ function photoQuestions() {
     const files = imgs.split(','), others = SPECIES.filter(x => x[3] === g && x[0] !== name).map(x => x[0]);
     files.forEach(f => {
       const opts = shuffle([name, ...shuffle(others).slice(0, 2)]);
-      out.push([-1, 'F-' + f, '¿Qué especie aparece en la imagen?', opts, opts.indexOf(name), f]);
+      out.push([-1, 'F-' + f, '¿Qué especie aparece en la imagen?', opts, opts.indexOf(name), f, name]);
     });
-    out.push([-1, 'C-' + files[0], '¿Se puede cazar en la Comunidad de Madrid la especie de la imagen?', CAZA_OPTS, [1, 0, 2][c], files[files.length > 1 ? 1 : 0]]);
+    out.push([-1, 'C-' + files[0], '¿Se puede cazar en la Comunidad de Madrid la especie de la imagen?', CAZA_OPTS, [1, 0, 2][c], files[files.length > 1 ? 1 : 0], name]);
   }
   return out;
 }
@@ -357,6 +410,15 @@ function renderHome() {
   window.scrollTo(0, 0);
 }
 
+/* ---------- Foto ampliada ---------- */
+document.addEventListener('click', e => {
+  const img = e.target.closest('.qimg img');
+  if (!img) return;
+  const host = $('#sheetHost');
+  host.innerHTML = `<div class="zoom" role="dialog" aria-modal="true" aria-label="Foto ampliada"><img src="${img.getAttribute('src')}" alt="${esc(img.alt)}">${img.dataset.cap ? `<p>${img.dataset.cap}</p>` : ''}<button class="btn alt" aria-label="Cerrar">Cerrar</button></div>`;
+  host.querySelector('.zoom').onclick = () => host.innerHTML = '';
+});
+
 /* ---------- Temario con respuestas ---------- */
 const CAZA_TXT = ['No se puede cazar', 'Cinegética', 'Solo captura en vivo (silvestrismo)'];
 function renderBook(tema = 0, query = '') {
@@ -370,7 +432,7 @@ function renderBook(tema = 0, query = '') {
   if (photos && tema === D.temas.length) {
     const sp = SPECIES.filter(x => !nq || norm(x[0]).includes(nq));
     body = `<div class="gallery">${sp.map(([name, imgs, c]) => imgs.split(',').map(f => `
-      <figure class="qimg"><img src="img/${f}.jpg" alt="${esc(name)}" loading="lazy"><figcaption><b>${esc(name)}</b><span class="pill ${c === 1 ? 'ok' : c === 2 ? '' : 'bad'}">${CAZA_TXT[c]}</span></figcaption></figure>`).join('')).join('')}</div>`;
+      <figure class="qimg"><img src="img/${f}.jpg" alt="${esc(name)}" loading="lazy" data-cap="${esc(spCap(name))}"><figcaption><b>${esc(name)}</b><span class="pill ${c === 1 ? 'ok' : c === 2 ? '' : 'bad'}">${CAZA_TXT[c]}</span><span class="spinfo">${esc(SPECIES_INFO[name] || '')}</span></figcaption></figure>`).join('')).join('')}</div>`;
   } else {
     const qs = D.q.filter(q => nq ? norm(q[2] + ' ' + q[3].join(' ')).includes(nq) : q[0] === tema);
     body = qs.length ? `<div class="review">${qs.map(q => `
@@ -399,7 +461,8 @@ function startStudy(title, qs, startAt = 0) {
   renderStudy();
 }
 
-const qimg = q => q[5] ? `<figure class="qimg"><img src="img/${q[5]}.jpg" alt="Foto de la especie que hay que identificar" loading="lazy"></figure>` : '';
+const spCap = name => `<b>${esc(name)}</b> ${esc(SPECIES_INFO[name] || '')}`;
+const qimg = (q, reveal) => q[5] ? `<figure class="qimg"><img src="img/${q[5]}.jpg" alt="${reveal ? esc(q[6]) : 'Foto de la especie que hay que identificar'}" loading="lazy" data-cap="${reveal ? esc(spCap(q[6])) : ''}">${reveal ? `<figcaption class="spinfo">${spCap(q[6])}</figcaption>` : ''}</figure>` : '';
 const qlabel = (q, D) => q[5] ? 'Identificación por foto' : `Pregunta ${q[1]} · ${esc(D.temas[q[0]])}`;
 
 function optHtml(q, i, cls, disabled) {
@@ -415,7 +478,7 @@ function renderStudy() {
     <div class="progress"><i style="width:${(s.i + (answered ? 1 : 0)) / s.qs.length * 100}%"></i></div>
     <article class="qcard">
       <div class="eyebrow">${qlabel(q, D)}</div>
-      ${qimg(q)}
+      ${qimg(q, answered)}
       <p class="qtext">${esc(q[2])}</p>
       <div class="opts">${q[3].map((_, i) => optHtml(q, i, answered ? (i === q[4] ? 'right' : i === a ? 'wrong' : '') : '', answered)).join('')}</div>
       ${answered ? `<div class="feedback ${a === q[4] ? 'ok' : 'bad'}">${a === q[4] ? '✓ Correcta' : '✗ Incorrecta · la buena es la ' + letters[q[4]].toUpperCase()}</div>` : ''}
@@ -519,7 +582,7 @@ function renderResult() {
     <div class="review">${wrong.map(x => `
       <div class="rv" id="rv${x.i}">
         <span class="eyebrow">${x.i + 1} · ${x.q[5] ? 'Identificación por foto' : `Pregunta ${x.q[1]} del manual`}</span>
-        ${qimg(x.q)}
+        ${qimg(x.q, true)}
         <span class="q">${esc(x.q[2])}</span>
         ${x.a === undefined ? '<span class="y">Sin responder</span>' : `<span class="y">✗ ${letters[x.a].toUpperCase()}. ${esc(x.q[3][x.a])}</span>`}
         <span class="c">✓ ${letters[x.q[4]].toUpperCase()}. ${esc(x.q[3][x.q[4]])}</span>
