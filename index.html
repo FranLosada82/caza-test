@@ -169,7 +169,15 @@ h2 { font-family: var(--display); font-weight: 700; font-size: 1.15rem; text-tra
 .rv { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 6px; font-size: .95rem; }
 .rv .q { font-weight: 600; }
 .rv .y { color: var(--bad); }
-.rv .c { color: var(--ok); }
+.rv .c { color: var(--ok); font-weight: 700; }
+.rv .o { color: var(--muted); }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: .9rem; color: var(--muted); }
+.tabs button[aria-pressed="true"] { background: var(--forest); color: var(--forest-ink); border-color: var(--forest); }
+.search { width: 100%; font: inherit; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.gallery figcaption { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; align-items: flex-start; }
+.gallery img { max-height: 160px; object-fit: cover; aspect-ratio: 4 / 3; }
 
 /* Diálogo de confirmación propio */
 .sheet { position: fixed; inset: 0; z-index: 20; background: rgba(10, 14, 8, .5); display: grid; align-items: end; }
@@ -310,6 +318,7 @@ function renderHome() {
       <div class="stat"><div class="v">${sm.pct === null ? '–' : sm.pct + '%'}</div><div class="l">Acierto</div></div>
       <div class="stat"><div class="v" style="color:${sm.failed ? 'var(--bad)' : 'inherit'}">${sm.failed}</div><div class="l">Por repasar</div></div>
     </div>
+    <button class="act" id="bookBtn" style="border-color:var(--forest)"><b>Temario con respuestas</b><span>Las ${D.q.length} preguntas de ${esc(D.short)} con la respuesta correcta marcada, por temas${region === 'M' ? ', y las fotos de especies' : ''}. Para estudiar.</span></button>
     <button class="hero-btn" id="examBtn"><div><b>Simulacro de examen</b><span>${EXAM_N} preguntas al azar · ${esc(RULES[region].label)}</span></div><div class="arrow" aria-hidden="true">›</div></button>
     <div class="actions">
       <button class="act" id="rndBtn"><b>Práctica rápida</b><span>20 al azar con corrección</span></button>
@@ -332,6 +341,7 @@ function renderHome() {
   `;
   document.querySelectorAll('.seg button').forEach(b => b.onclick = () => { region = b.dataset.r; store.set('region', region); renderHome(); });
   $('#examBtn').onclick = startExam;
+  $('#bookBtn').onclick = () => renderBook();
   $('#rndBtn').onclick = () => startStudy('Práctica rápida', shuffle(D.q).slice(0, 20));
   $('#failBtn').onclick = () => startStudy('Repasar falladas', shuffle(D.q.filter(q => { const s = stats[qid(region, q)]; return s && !s[2]; })));
   $('#newBtn').onclick = () => startStudy('Solo nuevas', shuffle(D.q.filter(q => !stats[qid(region, q)])));
@@ -345,6 +355,40 @@ function renderHome() {
     renderHome();
   });
   window.scrollTo(0, 0);
+}
+
+/* ---------- Temario con respuestas ---------- */
+const CAZA_TXT = ['No se puede cazar', 'Cinegética', 'Solo captura en vivo (silvestrismo)'];
+function renderBook(tema = 0, query = '') {
+  session = { mode: 'book' }; stopTimer();
+  $('#homeBtn').hidden = false;
+  setDock(null);
+  const D = DATA[region], photos = region === 'M', tabs = D.temas.concat(photos ? ['Fotos de especies'] : []);
+  const norm = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const nq = norm(query.trim());
+  let body;
+  if (photos && tema === D.temas.length) {
+    const sp = SPECIES.filter(x => !nq || norm(x[0]).includes(nq));
+    body = `<div class="gallery">${sp.map(([name, imgs, c]) => imgs.split(',').map(f => `
+      <figure class="qimg"><img src="img/${f}.jpg" alt="${esc(name)}" loading="lazy"><figcaption><b>${esc(name)}</b><span class="pill ${c === 1 ? 'ok' : c === 2 ? '' : 'bad'}">${CAZA_TXT[c]}</span></figcaption></figure>`).join('')).join('')}</div>`;
+  } else {
+    const qs = D.q.filter(q => nq ? norm(q[2] + ' ' + q[3].join(' ')).includes(nq) : q[0] === tema);
+    body = qs.length ? `<div class="review">${qs.map(q => `
+      <div class="rv">
+        <span class="eyebrow">Pregunta ${q[1]}${nq ? ' · ' + esc(D.temas[q[0]]) : ''}</span>
+        <span class="q">${esc(q[2])}</span>
+        ${q[3].map((o, i) => `<span class="${i === q[4] ? 'c' : 'o'}">${i === q[4] ? '✓' : '·'} ${letters[i].toUpperCase()}. ${esc(o)}</span>`).join('')}
+      </div>`).join('')}</div>` : '<p class="note">No hay preguntas que contengan ese texto.</p>';
+  }
+  $('#view').innerHTML = `
+    <div class="qhead"><span class="eyebrow">Temario con respuestas · ${esc(D.name)}</span></div>
+    <input class="search" id="bookQ" type="search" placeholder="Buscar en todas las preguntas…" value="${esc(query)}">
+    ${nq ? '' : `<div class="tabs">${tabs.map((t, i) => `<button data-t="${i}" aria-pressed="${i === tema}">${i < D.temas.length ? 'Tema ' + (i + 1) : 'Fotos'}</button>`).join('')}</div>
+    <h2>${esc(tabs[tema])}</h2>`}
+    ${body}`;
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { renderBook(+b.dataset.t); window.scrollTo(0, 0); });
+  const inp = $('#bookQ');
+  inp.oninput = () => { const v = inp.value, pos = inp.selectionStart; renderBook(tema, v); const n = $('#bookQ'); n.focus(); n.setSelectionRange(pos, pos); };
 }
 
 /* ---------- Modo estudio ---------- */
